@@ -1,0 +1,46 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Install Vue dependencies",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"--prefix",
+				"app",
+				"install"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Laravel tests with PHP 8.5",
+			"type": "shell",
+			"command": "Push-Location app; & 'C:\\wamp64\\bin\\php\\php8.5.11\\php.exe' artisan test; Pop-Location",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+		{
+			"label": "Build Vue frontend",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"--prefix",
+				"app",
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Format PHP with Laravel Pint",
+			"type": "shell",
+			"command": "Push-Location app; & 'C:\\wamp64\\bin\\php\\php8.5.11\\php.exe' vendor/bin/pint --dirty --format agent; Pop-Location",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+	]
+}

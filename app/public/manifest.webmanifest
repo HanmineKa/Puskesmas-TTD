@@ -1,0 +1,19 @@
+{
+  "name": "Program TTD Puskesmas",
+  "short_name": "Program TTD",
+  "description": "Pemantauan Program Tablet Tambah Darah siswi.",
+  "lang": "id",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f8f4",
+  "theme_color": "#176b53",
+  "icons": [
+    {
+      "src": "/icons/ttd.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
