@@ -63,4 +63,15 @@ class User extends Authenticatable
     {
         return $this->role === 'ADMIN_PUSTU';
     }
+
+    public function namaPengguna(): ?string
+    {
+        return match ($this->role) {
+            'ADMINISTRATOR' => $this->administrator?->nama,
+            'ADMIN_PUSTU' => $this->adminPustu?->nama,
+            'GURU' => $this->guru?->nama,
+            'SISWI' => $this->siswi?->nama,
+            default => null,
+        };
+    }
 }

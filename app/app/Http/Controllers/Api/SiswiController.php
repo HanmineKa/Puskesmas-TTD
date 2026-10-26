@@ -99,6 +99,7 @@ class SiswiController extends Controller
         abort_unless(in_array($user->role, ['ADMINISTRATOR', 'ADMIN_PUSTU', 'GURU'], true), 403);
         $filters = $request->validate([
             'nisn' => ['nullable', 'digits:10'],
+            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
             'sekolah_id' => ['nullable', 'integer', 'exists:sekolah,id'],
             'kelurahan_id' => ['nullable', 'integer', 'exists:kelurahan,id'],
             'status' => ['nullable', 'in:AKTIF,DALAM_MUTASI,LULUS,KELUAR_WILAYAH,PUTUS_SEKOLAH'],
@@ -106,6 +107,7 @@ class SiswiController extends Controller
         $query = Siswi::query()->with($this->enrollmentRelationsFor($user));
         $this->scopeSiswiQuery($query, $user);
         $query->when(isset($filters['nisn']), fn (Builder $builder) => $builder->where('nisn_hash', $blindIndex->hash($filters['nisn'])));
+        $query->when(isset($filters['kelas_id']), fn (Builder $builder) => $builder->whereHas('enrollments', fn (Builder $enrollment) => $enrollment->where('kelas_id', $filters['kelas_id'])));
         $query->when(isset($filters['status']), fn (Builder $builder) => $builder->where('status_pelacakan', $filters['status']));
         $query->when(isset($filters['sekolah_id']), fn (Builder $builder) => $builder->whereHas('enrollments', fn (Builder $enrollment) => $enrollment->where('sekolah_id', $filters['sekolah_id'])));
         $query->when(isset($filters['kelurahan_id']), fn (Builder $builder) => $builder->whereHas('enrollments.sekolah', fn (Builder $school) => $school->where('kelurahan_id', $filters['kelurahan_id'])));
@@ -146,6 +148,26 @@ class SiswiController extends Controller
         );
 
         return response()->json(['message' => 'Kelas Siswi berhasil diperbarui.']);
+    }
+
+    public function classes(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless(in_array($user->role, ['ADMINISTRATOR', 'ADMIN_PUSTU', 'GURU'], true), 403);
+
+        $query = Kelas::query()->with('sekolah:id,nama,pustu_id');
+        if ($user->role === 'ADMIN_PUSTU') {
+            $pustuId = $user->adminPustu?->pustu_id;
+            abort_unless($pustuId, 403);
+            $query->whereHas('sekolah', fn (Builder $school) => $school->where('pustu_id', $pustuId));
+        } elseif ($user->role === 'GURU') {
+            $query->where('sekolah_id', $this->activeTeacher($user)->sekolah_id);
+        }
+
+        return response()->json([
+            'data' => $query->orderBy('sekolah_id')->orderBy('tingkat')->orderBy('nama')
+                ->get(['id', 'sekolah_id', 'nama', 'tingkat']),
+        ]);
     }
 
     private function createTransferRequest(

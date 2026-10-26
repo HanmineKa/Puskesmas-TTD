@@ -1,8 +1,8 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import AppLayout from '../components/AppLayout.vue';
-import BaseButton from '../components/BaseButton.vue';
 import DataTable from '../components/DataTable.vue';
+import ToastMessage from '../components/ToastMessage.vue';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
@@ -40,6 +40,12 @@ function formatDate(value) {
     return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(timestamp));
 }
 
+let filterTimer;
+watch(() => Object.values(filters), () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(load, 250);
+});
+
 onMounted(load);
 </script>
 
@@ -47,7 +53,7 @@ onMounted(load);
     <AppLayout>
         <div class="page-content">
             <header class="page-heading"><div><p class="eyebrow">PENCATATAN AKTIVITAS</p><h1>{{ isAdministrator ? 'Log Aktivitas' : 'Riwayat Tindakan' }}</h1></div></header>
-            <form class="log-filters" @submit.prevent="load">
+            <div class="log-filters role-filter-row">
                 <label class="management-field"><span>Dari tanggal</span><input v-model="filters.mulai" type="date"></label>
                 <label class="management-field"><span>Sampai tanggal</span><input v-model="filters.selesai" type="date"></label>
                 <label class="management-field"><span>Jenis tindakan</span><input v-model="filters.aksi" type="text" maxlength="60" placeholder="Contoh: SEKOLAH_DIBUAT"></label>
@@ -55,9 +61,8 @@ onMounted(load);
                 <label v-if="isAdministrator" class="management-field"><span>ID Pustu</span><input v-model="filters.pustu_id" type="number" min="1"></label>
                 <label class="management-field"><span>Kategori</span><select v-model="filters.kategori"><option value="">Semua kategori</option><option value="OPERASIONAL">Operasional</option><option v-if="isAdministrator" value="KEAMANAN">Keamanan</option></select></label>
                 <label v-if="isAdministrator" class="management-field"><span>Jenis objek</span><input v-model="filters.objek_tipe" type="text" maxlength="50" placeholder="Contoh: Sekolah"></label>
-                <BaseButton type="submit" variant="secondary">Terapkan filter</BaseButton>
-            </form>
-            <p v-if="errorMessage" class="management-error" role="alert">{{ errorMessage }}</p>
+            </div>
+            <ToastMessage v-if="errorMessage" :message="errorMessage" type="error" />
             <section class="log-section"><h2>Audit</h2><DataTable :columns="columns" :rows="auditRows" label="Daftar audit"><template #cell-created_at="{ row }">{{ formatDate(row.created_at) }}</template></DataTable></section>
             <template v-if="isAdministrator">
                 <section class="log-section"><h2>Riwayat Masuk</h2><DataTable :columns="[

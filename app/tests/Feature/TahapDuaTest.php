@@ -284,6 +284,7 @@ class TahapDuaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.nama', 'Siswi Pribadi')
             ->assertJsonPath('data.nisn', '0123456789');
+        $this->getJson('/api/session')->assertJsonPath('user.nama_pengguna', 'Siswi Pribadi');
 
         $this->assertDatabaseHas('log_akses_data', [
             'user_id' => $user->id,
@@ -338,7 +339,9 @@ class TahapDuaTest extends TestCase
 
         $this->actingAs($administrator)->getJson('/api/guru?nuptk='.$teacherIdentity)
             ->assertOk()
-            ->assertJsonPath('data.data.0.nuptk', str_repeat('•', 12).'6789');
+            ->assertJsonPath('data.data.0.nuptk', str_repeat('•', 12).'6789')
+            ->assertJsonPath('data.data.0.sekolah.nama', 'Sekolah Pengujian')
+            ->assertJsonPath('data.data.0.sekolah.kelurahan', 'Kelurahan Pengujian');
         $this->getJson('/api/guru/'.$teacher->id)
             ->assertOk()
             ->assertJsonPath('data.nuptk', $teacherIdentity);
@@ -359,6 +362,45 @@ class TahapDuaTest extends TestCase
             'jenis_akses' => 'BUKA_DETAIL_SISWI',
             'objek_id' => $siswi->id,
         ]);
+    }
+
+    public function test_class_list_and_student_filter_are_available_to_pustu_staff(): void
+    {
+        [$school, , $enrollment, $yearId] = $this->createActiveStudentEnrollment();
+        $otherClassId = DB::table('kelas')->insertGetId([
+            'sekolah_id' => $school->id,
+            'tahun_ajaran_id' => $yearId,
+            'nama' => 'VII-B',
+            'tingkat' => 7,
+            'kelas_akhir' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $adminPustu = $this->createPustuReviewer(Pustu::query()->findOrFail($school->pustu_id), '198701012009011001');
+        $otherPuskesmasId = DB::table('puskesmas_utama')->insertGetId(['nama' => 'Puskesmas Lain', 'created_at' => now(), 'updated_at' => now()]);
+        $otherPustuId = DB::table('pustu')->insertGetId(['puskesmas_utama_id' => $otherPuskesmasId, 'nama' => 'Pustu Lain', 'aktif' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $otherDistrictId = DB::table('kecamatan')->insertGetId(['nama' => 'Kecamatan Lain', 'created_at' => now(), 'updated_at' => now()]);
+        $otherSubdistrictId = DB::table('kelurahan')->insertGetId(['kecamatan_id' => $otherDistrictId, 'nama' => 'Kelurahan Lain', 'created_at' => now(), 'updated_at' => now()]);
+        $otherSchoolId = DB::table('sekolah')->insertGetId([
+            'npsn' => '87654321', 'nama' => 'Sekolah Lain', 'jenjang' => 'SMP', 'kelurahan_id' => $otherSubdistrictId,
+            'pustu_id' => $otherPustuId, 'status' => 'AKTIF', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $outsideClassId = DB::table('kelas')->insertGetId([
+            'sekolah_id' => $otherSchoolId, 'tahun_ajaran_id' => $yearId, 'nama' => 'VII-X', 'tingkat' => 7,
+            'kelas_akhir' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($adminPustu)->getJson('/api/kelas')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $enrollment->kelas_id, 'nama' => 'SMP-7'])
+            ->assertJsonFragment(['id' => $otherClassId, 'nama' => 'VII-B'])
+            ->assertJsonMissing(['id' => $outsideClassId, 'nama' => 'VII-X']);
+        $this->getJson('/api/siswi?kelas_id='.$enrollment->kelas_id)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data');
+        $this->getJson('/api/siswi?kelas_id='.$otherClassId)
+            ->assertOk()
+            ->assertJsonCount(0, 'data.data');
     }
 
     public function test_pustu_admin_can_only_verify_teachers_in_its_own_territory(): void

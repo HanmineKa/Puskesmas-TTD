@@ -71,7 +71,7 @@ class AuthController extends Controller
             return response()->json([
                 'requires_account_setup' => true,
                 'setup_required' => ['GANTI_SANDI'],
-                'user' => $user,
+                'user' => $this->serializeUser($user),
             ]);
         }
 
@@ -86,7 +86,7 @@ class AuthController extends Controller
 
         $logger->login($user, 'LOGIN_BERHASIL', $request);
 
-        return response()->json(['user' => $user]);
+        return response()->json(['user' => $this->serializeUser($user)]);
     }
 
     public function logout(Request $request, ActivityLogger $logger): JsonResponse
@@ -102,5 +102,14 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Anda berhasil keluar.']);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializeUser(User $user): array
+    {
+        return [
+            ...$user->only(['id', 'role', 'username', 'status', 'wajib_ganti_sandi']),
+            'nama_pengguna' => $user->namaPengguna(),
+        ];
     }
 }

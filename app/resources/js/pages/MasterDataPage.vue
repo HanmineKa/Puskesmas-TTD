@@ -1,13 +1,13 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import AppLayout from '../components/AppLayout.vue';
 import BaseButton from '../components/BaseButton.vue';
 import BaseField from '../components/BaseField.vue';
 import DataTable from '../components/DataTable.vue';
-import { useAuthStore } from '../stores/auth';
+import ToastMessage from '../components/ToastMessage.vue';
 
-const auth = useAuthStore();
-const activeTab = ref('kecamatan');
+const props = defineProps({ section: { type: String, default: 'kecamatan' } });
+const activeTab = ref(props.section);
 const kecamatanRows = ref([]);
 const kelurahanRows = ref([]);
 const yearRows = ref([]);
@@ -15,11 +15,11 @@ const message = ref('');
 const errorMessage = ref('');
 const editId = ref(null);
 const form = reactive({ kecamatan_id: '', nama: '', kode: '', label: '', tgl_mulai: '', tgl_selesai: '', aktif: false });
-const tabs = [
-    { id: 'kecamatan', label: 'Kecamatan' },
-    { id: 'kelurahan', label: 'Kelurahan' },
-    { id: 'tahun-ajaran', label: 'Tahun Ajaran' },
-];
+const pageTitle = computed(() => ({
+    kecamatan: 'Kecamatan',
+    kelurahan: 'Kelurahan',
+    'tahun-ajaran': 'Tahun Ajaran',
+}[activeTab.value] ?? 'Wilayah'));
 const columns = computed(() => activeTab.value === 'kecamatan'
     ? [{ key: 'nama', label: 'Kecamatan' }, { key: 'kode', label: 'Kode' }, { key: 'kelurahan_count', label: 'Kelurahan' }]
     : activeTab.value === 'kelurahan'
@@ -121,17 +121,20 @@ async function activateYear(year) {
 }
 
 onMounted(load);
+watch(() => props.section, (section) => {
+    activeTab.value = section;
+    resetForm();
+});
 </script>
 
 <template>
     <AppLayout>
         <div class="page-content">
             <header class="page-heading">
-                <div><p class="eyebrow">DATA DASAR</p><h1>Data Wilayah</h1></div>
+                <div><p class="eyebrow">DATA DASAR</p><h1>{{ pageTitle }}</h1></div>
             </header>
-            <div class="master-tabs" role="tablist" aria-label="Jenis data dasar">
-                <button v-for="tab in tabs" :key="tab.id" type="button" role="tab" :aria-selected="activeTab === tab.id" :class="{ 'master-tab--active': activeTab === tab.id }" @click="activeTab = tab.id; resetForm()">{{ tab.label }}</button>
-            </div>
+            <ToastMessage v-if="errorMessage" :message="errorMessage" type="error" />
+            <ToastMessage v-if="message" :message="message" type="success" />
             <div class="master-data-grid">
                 <section class="master-data-form" aria-label="Tambah data">
                     <h2>{{ editId ? (activeTab === 'tahun-ajaran' ? 'Ubah tahun ajaran' : `Ubah ${activeTab}`) : (activeTab === 'tahun-ajaran' ? 'Tambah tahun ajaran' : `Tambah ${activeTab}`) }}</h2>
@@ -151,13 +154,11 @@ onMounted(load);
                             <label class="management-field"><span>Tanggal selesai</span><input v-model="form.tgl_selesai" type="date" required></label>
                             <label class="management-checkbox"><input v-model="form.aktif" type="checkbox"><span>Jadikan tahun ajaran aktif</span></label>
                         </template>
-                        <p v-if="errorMessage" class="management-error" role="alert">{{ errorMessage }}</p>
-                        <p v-if="message" class="management-success" role="status">{{ message }}</p>
                         <BaseButton type="submit">{{ editId ? 'Simpan perubahan' : 'Simpan' }}</BaseButton>
                     </form>
                 </section>
                 <section class="master-data-table" aria-label="Daftar data">
-                    <DataTable :columns="columns" :rows="rows" :label="`Daftar ${activeTab}`" show-actions>
+                    <DataTable :columns="columns" :rows="rows" :label="`Daftar ${pageTitle}`" show-actions>
                         <template #cell-kecamatan="{ row }">{{ row.kecamatan?.nama ?? '—' }}</template>
                         <template #cell-status_label="{ row }"><span class="status-label">{{ row.status_label }}</span></template>
                         <template #actions="{ row }">

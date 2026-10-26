@@ -285,6 +285,23 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_login_from_the_development_server_origin_uses_session_middleware(): void
+    {
+        $identity = 'origin-pengujian';
+        User::factory()->create([
+            'login_hash' => app(BlindIndex::class)->hash('USERNAME:'.$identity),
+            'password' => 'kata-sandi-uji',
+        ]);
+
+        $this->withHeader('Origin', 'http://127.0.0.1:8012')
+            ->postJson('/api/login', [
+                'identitas' => $identity,
+                'password' => 'kata-sandi-uji',
+            ])
+            ->assertOk()
+            ->assertJsonPath('user.role', 'SISWI');
+    }
+
     public function test_login_sanitizes_markup_from_identity_before_authentication(): void
     {
         $identity = 'siswi-sanitasi';

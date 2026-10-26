@@ -8,8 +8,8 @@ defineProps({
 </script>
 
 <template>
-    <div class="data-table-scroll" role="region" :aria-label="label" tabindex="0">
-        <table class="data-table">
+    <div class="data-table-wrap" :aria-label="label">
+        <table class="data-table" :aria-label="label">
             <thead>
                 <tr>
                     <th v-for="column in columns" :key="column.key" scope="col">
@@ -32,5 +32,17 @@ defineProps({
                 </tr>
             </tbody>
         </table>
+        <div class="data-card-list" role="list" :aria-label="`${label}, tampilan kartu`">
+            <p v-if="rows.length === 0" class="data-table__empty">Belum ada data.</p>
+            <article v-for="(row, rowIndex) in rows" :key="row.id ?? rowIndex" class="data-card" role="listitem">
+                <dl class="data-card__fields">
+                    <div v-for="column in columns" :key="column.key">
+                        <dt>{{ column.label }}</dt>
+                        <dd><slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]">{{ row[column.key] ?? '—' }}</slot></dd>
+                    </div>
+                </dl>
+                <div v-if="showActions" class="data-card__actions"><slot name="actions" :row="row" /></div>
+            </article>
+        </div>
     </div>
 </template>

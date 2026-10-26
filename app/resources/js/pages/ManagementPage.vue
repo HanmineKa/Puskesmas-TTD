@@ -209,6 +209,13 @@ function cellValue(row, key) {
     return row[key] ?? '—';
 }
 
+let schoolFilterTimer;
+watch(() => [search.value, schoolFilters.pustu_id, schoolFilters.kelurahan_id, schoolFilters.jenjang], () => {
+    if (resource.value !== 'sekolah') return;
+    clearTimeout(schoolFilterTimer);
+    schoolFilterTimer = setTimeout(load, 250);
+});
+
 watch(() => route.meta.resource, load);
 onMounted(load);
 </script>
@@ -224,15 +231,14 @@ onMounted(load);
                 <BaseButton v-if="isAdministrator || resource === 'sekolah'" type="button" @click="openCreate">Tambah data</BaseButton>
             </header>
 
-            <form v-if="resource === 'sekolah'" class="management-search" @submit.prevent="load">
+            <div v-if="resource === 'sekolah'" class="management-search role-filter-row">
                 <BaseField id="school-search" v-model="search" label="Cari NPSN" inputmode="numeric" />
                 <label class="management-field"><span>Jenjang</span><select v-model="schoolFilters.jenjang"><option value="">Semua jenjang</option><option value="SMP">SMP</option><option value="SMA">SMA</option><option value="SMK">SMK</option></select></label>
                 <label v-if="isAdministrator" class="management-field"><span>Pustu</span><select v-model="schoolFilters.pustu_id"><option value="">Semua Pustu</option><option v-for="item in pustuOptions" :key="item.id" :value="item.id">{{ item.nama }}</option></select></label>
                 <label class="management-field"><span>Kelurahan</span><select v-model="schoolFilters.kelurahan_id"><option value="">Semua kelurahan</option><option v-for="item in kelurahanOptions" :key="item.id" :value="item.id">{{ item.nama }}</option></select></label>
-                <BaseButton type="submit" variant="secondary">Terapkan filter</BaseButton>
-            </form>
+            </div>
 
-            <p v-if="errorMessage && !modalOpen" class="management-error" role="alert">{{ errorMessage }}</p>
+            <ToastMessage v-if="errorMessage" :message="errorMessage" type="error" />
             <div v-if="loading" class="management-state" role="status">Memuat data...</div>
             <DataTable v-else :columns="columns" :rows="rows" :label="`Daftar ${pageTitle}`" show-actions>
                 <template v-for="column in columns" #[`cell-${column.key}`]="{ row }" :key="column.key">

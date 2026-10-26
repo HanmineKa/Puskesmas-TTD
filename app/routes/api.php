@@ -36,7 +36,7 @@ Route::get('/session', function (Request $request) {
     $setupRequired = $user?->wajib_ganti_sandi ? ['GANTI_SANDI'] : [];
 
     return response()->json([
-        'user' => $user?->only(['id', 'role', 'username', 'status', 'wajib_ganti_sandi']),
+        'user' => $user ? [...$user->only(['id', 'role', 'username', 'status', 'wajib_ganti_sandi']), 'nama_pengguna' => $user->namaPengguna()] : null,
         'requires_account_setup' => $setupRequired !== [],
         'setup_required' => $setupRequired,
     ]);
@@ -74,6 +74,7 @@ Route::middleware(['auth:sanctum', 'account.setup'])->group(function () {
     Route::get('/guru/{guru}', [GuruController::class, 'show']);
     Route::patch('/guru/{guru}/verifikasi', [GuruController::class, 'verify']);
     Route::get('/siswi/saya', [SiswiController::class, 'profile']);
+    Route::get('/kelas', [SiswiController::class, 'classes']);
     Route::get('/siswi', [SiswiController::class, 'index']);
     Route::get('/siswi/{siswi}', [SiswiController::class, 'show']);
     Route::get('/alasan-tidak-minum', AlasanTidakMinumController::class);

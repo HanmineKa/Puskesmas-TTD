@@ -1,11 +1,14 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import AppLayout from '../components/AppLayout.vue';
 import BaseButton from '../components/BaseButton.vue';
 import BaseField from '../components/BaseField.vue';
 import BaseModal from '../components/BaseModal.vue';
+import DataTable from '../components/DataTable.vue';
+import ToastMessage from '../components/ToastMessage.vue';
 import { useAuthStore } from '../stores/auth';
 
+const props = defineProps({ view: { type: String, default: 'auto' } });
 const auth = useAuthStore();
 const loading = ref(false);
 const saving = ref(false);
@@ -22,6 +25,15 @@ const isAdministrator = computed(() => auth.user?.role === 'ADMINISTRATOR');
 const isTeacher = computed(() => auth.user?.role === 'GURU');
 const roleLabel = computed(() => isAdministrator.value ? 'Administrator' : isTeacher.value ? 'Guru' : 'Siswi');
 const reportSettings = reactive({ batas_hari_validasi: 7, jeda_pengingat_hari: 7 });
+const isStudentHistory = computed(() => props.view === 'riwayat');
+const reportColumns = [
+    { key: 'nama', label: 'Siswi' },
+    { key: 'nisn_tersamar', label: 'NISN' },
+    { key: 'kelas', label: 'Kelas' },
+    { key: 'status_minum', label: 'Laporan' },
+    { key: 'status_validasi', label: 'Pemeriksaan' },
+    { key: 'alasan', label: 'Alasan' },
+];
 const mode = ref('SUDAH');
 const evidenceFile = ref(null);
 const retryFile = ref(null);
@@ -71,12 +83,11 @@ async function load() {
         } else if (isTeacher.value) {
             dashboard.value = await api('/api/laporan-mingguan');
         } else {
-            const [reasonPayload, historyPayload] = await Promise.all([
-                api('/api/alasan-tidak-minum'),
-                api('/api/laporan-mingguan/saya'),
-            ]);
-            reasons.value = reasonPayload.data ?? [];
+            const historyPayload = await api('/api/laporan-mingguan/saya');
             history.value = historyPayload.data ?? [];
+            if (! isStudentHistory.value) {
+                reasons.value = (await api('/api/alasan-tidak-minum')).data ?? [];
+            }
         }
     } catch (error) {
         errorMessage.value = error.message;
@@ -248,6 +259,7 @@ function formatDate(value) {
 }
 
 onMounted(load);
+watch(isStudentHistory, load);
 </script>
 
 <template>
@@ -256,13 +268,13 @@ onMounted(load);
             <header class="page-heading">
                 <div>
                     <p class="eyebrow">PROGRAM TTD</p>
-                    <h1>{{ isTeacher ? 'Pemantauan Mingguan' : 'Laporan Mingguan TTD' }}</h1>
+                    <h1>{{ isTeacher ? 'Pemantauan Mingguan' : isStudentHistory ? 'Riwayat Laporan' : 'Laporan Mingguan TTD' }}</h1>
                 </div>
-                    <span class="role-badge">{{ roleLabel }}</span>
+                <span class="role-badge">{{ auth.user?.nama_pengguna ?? roleLabel }}</span>
             </header>
 
-            <p v-if="errorMessage" class="management-error" role="alert">{{ errorMessage }}</p>
-            <p v-if="successMessage" class="management-success" role="status">{{ successMessage }}</p>
+            <ToastMessage v-if="errorMessage" :message="errorMessage" type="error" />
+            <ToastMessage v-if="successMessage" :message="successMessage" type="success" />
             <p v-if="loading" class="management-state" role="status">Memuat laporan...</p>
 
             <template v-if="isAdministrator">
@@ -289,21 +301,11 @@ onMounted(load);
                         <div><p class="eyebrow">MINGGU BERJALAN</p><h2>Pemantauan Siswi</h2></div>
                         <label class="report-filter"><span>Validasi</span><select v-model="reviewFilter"><option value="SEMUA">Semua</option><option value="MENUNGGU">Menunggu</option><option value="VALID">Valid</option><option value="TIDAK_VALID">Tidak valid</option></select></label>
                     </div>
-                    <div class="data-table-scroll" role="region" aria-label="Pemantauan laporan Siswi" tabindex="0">
-                        <table class="data-table reporting-table">
-                            <thead><tr><th>Siswi</th><th>NISN</th><th>Kelas</th><th>Laporan</th><th>Validasi</th><th>Alasan</th><th>Aksi</th></tr></thead>
-                            <tbody>
-                                <tr v-for="row in filteredRows" :key="row.enrollment_id">
-                                    <td>{{ row.nama }}</td><td>{{ row.nisn_tersamar }}</td><td>{{ row.kelas }}</td>
-                                    <td>{{ row.status_minum === 'SUDAH' ? 'Sudah minum' : row.status_minum === 'TIDAK' ? 'Belum minum' : 'Belum melapor' }}</td>
-                                    <td><span class="status-label" :class="{ 'status-label--pending': row.status_validasi === 'MENUNGGU', 'status-label--invalid': row.status_validasi === 'TIDAK_VALID' }">{{ statusLabel(row.status_validasi) }}</span></td>
-                                    <td>{{ row.alasan ?? '—' }}</td>
-                                    <td><div class="table-actions"><BaseButton v-if="row.foto_url" type="button" variant="secondary" @click="openReport(row)">Periksa foto</BaseButton><BaseButton v-if="!row.status_minum" type="button" variant="secondary" @click="remindStudent(row)">Kirim pengingat</BaseButton><BaseButton type="button" variant="secondary" @click="openException(row)">Pengecualian medis</BaseButton></div></td>
-                                </tr>
-                                <tr v-if="!filteredRows.length"><td colspan="7" class="data-table__empty">Tidak ada laporan untuk filter ini.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable :columns="reportColumns" :rows="filteredRows" label="Pemantauan laporan Siswi" show-actions>
+                        <template #cell-status_minum="{ row }">{{ row.status_minum === 'SUDAH' ? 'Sudah minum' : row.status_minum === 'TIDAK' ? 'Belum minum' : 'Belum melapor' }}</template>
+                        <template #cell-status_validasi="{ row }"><span class="status-label" :class="row.status_validasi === 'TIDAK_VALID' ? 'status-label--invalid' : row.status_validasi === 'MENUNGGU' ? 'status-label--pending' : 'status-label--success'">{{ statusLabel(row.status_validasi) }}</span></template>
+                        <template #actions="{ row }"><div class="table-actions"><BaseButton v-if="row.foto_url" type="button" variant="secondary" @click="openReport(row)">Periksa foto</BaseButton><BaseButton v-if="!row.status_minum" type="button" variant="secondary" @click="remindStudent(row)">Kirim pengingat</BaseButton><BaseButton type="button" variant="secondary" @click="openException(row)">Pengecualian medis</BaseButton></div></template>
+                    </DataTable>
                 </section>
 
                 <BaseModal v-if="selectedReport" :model-value="true" title="Validasi foto bukti" @update:model-value="selectedReport = null">
@@ -324,6 +326,19 @@ onMounted(load);
                         <BaseButton type="submit" :disabled="saving">Simpan pengecualian</BaseButton>
                     </form>
                 </BaseModal>
+            </template>
+
+            <template v-else-if="isStudentHistory">
+                <section class="stage-section">
+                    <div class="stage-section__heading"><div><p class="eyebrow">RIWAYAT PRIBADI</p><h2>Laporan yang pernah dikirim</h2></div></div>
+                    <ol class="report-history">
+                        <li v-for="report in history" :key="report.id">
+                            <div><strong>Minggu ke-{{ report.minggu_ke }}</strong><span>{{ report.status_minum === 'SUDAH' ? 'Sudah minum' : `Belum minum · ${report.alasan ?? 'Alasan tercatat'}` }}</span><small>{{ formatDate(report.waktu_minum) }}</small></div>
+                            <div class="report-history__status"><span class="status-label" :class="report.status_validasi === 'TIDAK_VALID' ? 'status-label--invalid' : report.status_validasi === 'MENUNGGU' ? 'status-label--pending' : 'status-label--success'">{{ reportValidationLabel(report) }}</span><p v-if="report.catatan_validasi">{{ report.catatan_validasi }}</p><label v-if="report.dapat_unggah_ulang" class="report-retry"><span>Foto baru</span><input type="file" accept="image/jpeg,image/png,image/webp" @change="chooseRetryEvidence"><BaseButton type="button" variant="secondary" :disabled="saving" @click="resubmit(report)">Unggah ulang</BaseButton></label></div>
+                        </li>
+                        <li v-if="!history.length" class="report-history__empty">Belum ada laporan mingguan.</li>
+                    </ol>
+                </section>
             </template>
 
             <template v-else>
@@ -347,16 +362,6 @@ onMounted(load);
                     </form>
                 </section>
 
-                <section class="stage-section">
-                    <div class="stage-section__heading"><div><p class="eyebrow">RIWAYAT PRIBADI</p><h2>Laporan sebelumnya</h2></div></div>
-                    <ol class="report-history">
-                        <li v-for="report in history" :key="report.id">
-                            <div><strong>Minggu ke-{{ report.minggu_ke }}</strong><span>{{ report.status_minum === 'SUDAH' ? 'Sudah minum' : `Belum minum · ${report.alasan ?? 'Alasan tercatat'}` }}</span><small>{{ formatDate(report.waktu_minum) }}</small></div>
-                            <div class="report-history__status"><span class="status-label" :class="{ 'status-label--pending': report.status_validasi === 'MENUNGGU', 'status-label--invalid': report.status_validasi === 'TIDAK_VALID' }">{{ reportValidationLabel(report) }}</span><p v-if="report.catatan_validasi">{{ report.catatan_validasi }}</p><label v-if="report.dapat_unggah_ulang" class="report-retry"><span>Foto baru</span><input type="file" accept="image/jpeg,image/png,image/webp" @change="chooseRetryEvidence"><BaseButton type="button" variant="secondary" :disabled="saving" @click="resubmit(report)">Unggah ulang</BaseButton></label></div>
-                        </li>
-                        <li v-if="!history.length" class="report-history__empty">Belum ada laporan mingguan.</li>
-                    </ol>
-                </section>
             </template>
         </div>
     </AppLayout>
