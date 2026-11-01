@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\Logging\ActivityLogger;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -18,6 +19,21 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        parent::booted();
+
+        static::updated(function (User $user): void {
+            if ($user->wasChanged('role')) {
+                app(ActivityLogger::class)->securityAlert(
+                    'PERAN_AKUN_BERUBAH',
+                    'Perubahan peran akun',
+                    'Peran pada sebuah akun pengguna telah berubah.',
+                );
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

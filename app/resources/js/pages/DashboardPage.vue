@@ -7,6 +7,9 @@ import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
 const notifications = ref([]);
+const reportDashboard = ref(null);
+const reportDashboardError = ref('');
+const reportDashboardLoading = ref(false);
 const roleLabels = {
     ADMINISTRATOR: 'Administrator',
     ADMIN_PUSTU: 'Admin Pustu',
@@ -24,7 +27,7 @@ const dashboardContent = computed(() => ({
             { label: 'Data Guru', detail: 'Pencarian identitas dan sekolah', to: '/program/data-guru', tone: 'mint' },
             { label: 'Verifikasi Guru', detail: 'Tinjau pendaftaran dan dokumen', to: '/program/verifikasi-guru', tone: 'plain' },
             { label: 'Data Siswi', detail: 'Pencarian dan riwayat sekolah', to: '/program/data-siswi', tone: 'plain' },
-            { label: 'Buka laporan', detail: 'Pemantauan dan pengaturan pelaporan', to: '/pelaporan', tone: 'plain' },
+            { label: 'Laporan & Ekspor', detail: 'Kepatuhan dan perbandingan antar-Pustu', to: '/laporan-rekap', tone: 'plain' },
             { label: 'Catatan aktivitas', detail: 'Riwayat tindakan dan akses', to: '/log-aktivitas', tone: 'plain' },
         ],
     },
@@ -38,6 +41,7 @@ const dashboardContent = computed(() => ({
             { label: 'Verifikasi Guru', detail: 'Tinjau pendaftaran Guru', to: '/program/verifikasi-guru', tone: 'plain' },
             { label: 'Data Siswi', detail: 'Siswi pada wilayah Pustu', to: '/program/data-siswi', tone: 'plain' },
             { label: 'Mutasi Siswi', detail: 'Validasi perpindahan sekolah', to: '/program/mutasi', tone: 'plain' },
+            { label: 'Laporan & Ekspor', detail: 'Kepatuhan sekolah binaan', to: '/laporan-rekap', tone: 'plain' },
             { label: 'Riwayat tindakan', detail: 'Aktivitas operasional wilayah', to: '/log-aktivitas', tone: 'plain' },
         ],
     },
@@ -67,6 +71,20 @@ const dashboardContent = computed(() => ({
     actions: [],
 }));
 const currentDate = computed(() => new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date()));
+const showsReportDashboard = computed(() => ['ADMINISTRATOR', 'ADMIN_PUSTU'].includes(auth.user?.role));
+const reportComparisons = computed(() => {
+    if (! reportDashboard.value) return [];
+
+    return auth.user?.role === 'ADMINISTRATOR'
+        ? reportDashboard.value.perbandingan_pustu ?? []
+        : reportDashboard.value.perbandingan_sekolah ?? [];
+});
+const overdueComparisons = computed(() => reportComparisons.value.filter((row) => row.validasi_tertunda > 0));
+
+function reasonWidth(reason) {
+    const largest = Math.max(...(reportDashboard.value?.alasan ?? []).map((item) => item.jumlah), 1);
+    return Math.max(6, Math.round(reason.jumlah / largest * 100));
+}
 
 async function loadNotifications() {
     try {
@@ -74,6 +92,26 @@ async function loadNotifications() {
         if (response.ok) notifications.value = (await response.json()).data ?? [];
     } catch {
         notifications.value = [];
+    }
+}
+
+async function loadReportDashboard() {
+    if (! showsReportDashboard.value) return;
+
+    reportDashboardLoading.value = true;
+    reportDashboardError.value = '';
+    try {
+        const response = await fetch('/api/laporan-rekap', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        const payload = await response.json();
+        if (! response.ok) throw new Error(payload.message ?? 'Ringkasan laporan tidak dapat dimuat.');
+        reportDashboard.value = payload;
+    } catch (error) {
+        reportDashboardError.value = error.message;
+    } finally {
+        reportDashboardLoading.value = false;
     }
 }
 
@@ -86,7 +124,10 @@ async function markAsRead(notification) {
     if (response.ok) notification.dibaca_at = new Date().toISOString();
 }
 
-onMounted(loadNotifications);
+onMounted(() => {
+    loadNotifications();
+    loadReportDashboard();
+});
 </script>
 
 <template>
@@ -125,6 +166,62 @@ onMounted(loadNotifications);
                     <p>{{ dashboardContent.description }}</p>
                 </div>
                 <span class="dashboard-welcome__mark" aria-hidden="true">TTD</span>
+            </section>
+
+            <section v-if="showsReportDashboard" class="report-dashboard" aria-labelledby="report-dashboard-title">
+                <header class="report-dashboard__heading">
+                    <div><p class="eyebrow">{{ auth.user?.role === 'ADMINISTRATOR' ? 'RINGKASAN WILAYAH' : 'RINGKASAN PUSTU' }}</p><h2 id="report-dashboard-title">Kepatuhan minum TTD</h2></div>
+                    <RouterLink class="text-link" to="/laporan-rekap">Buka laporan &amp; ekspor</RouterLink>
+                </header>
+
+                <p v-if="reportDashboardLoading" class="report-dashboard__state" role="status">Memuat ringkasan...</p>
+                <p v-else-if="reportDashboardError" class="report-dashboard__state report-dashboard__state--error" role="alert">{{ reportDashboardError }}</p>
+                <template v-else-if="reportDashboard">
+                    <p class="report-dashboard__period">{{ reportDashboard.periode }}</p>
+                    <div class="report-summary">
+                        <div><span>Cakupan Penerimaan</span><strong>{{ reportDashboard.ringkasan.cakupan_penerimaan }}%</strong><small>{{ reportDashboard.ringkasan.jumlah_siswi_melapor }} dari {{ reportDashboard.ringkasan.jumlah_siswi }} siswi melapor</small></div>
+                        <div><span>Tingkat Kepatuhan</span><strong>{{ reportDashboard.ringkasan.tingkat_kepatuhan }}%</strong><small>{{ reportDashboard.ringkasan.jumlah_minggu_patut }} dari {{ reportDashboard.ringkasan.jumlah_minggu_diharapkan }} minggu</small></div>
+                        <div><span>Menunggu Pemeriksaan</span><strong>{{ reportDashboard.ringkasan.menunggu }}</strong><small>{{ reportDashboard.ringkasan.valid }} valid · {{ reportDashboard.ringkasan.tidak_valid }} tidak valid</small></div>
+                        <div class="report-summary__overdue"><span>Validasi Tertunda</span><strong>{{ reportDashboard.ringkasan.validasi_tertunda }}</strong><small>Sudah melewati batas waktu</small></div>
+                    </div>
+                    <p class="report-dashboard__note">Laporan berstatus Menunggu dihitung sementara sebagai patuh. Periode dan rincian validasi ditampilkan agar angka sementara dapat dibedakan.</p>
+
+                    <div class="report-dashboard__grid">
+                        <section class="report-dashboard__section" aria-labelledby="dashboard-reasons-title">
+                            <h3 id="dashboard-reasons-title">Alasan tidak minum</h3>
+                            <p v-if="reportDashboard.alasan.length === 0" class="report-dashboard__muted">Belum ada laporan tidak minum pada periode ini.</p>
+                            <ol v-else class="report-bars">
+                                <li v-for="reason in reportDashboard.alasan" :key="reason.nama">
+                                    <div><span>{{ reason.nama }}</span><strong>{{ reason.jumlah }}</strong></div>
+                                    <span class="report-bars__track"><span :style="{ width: `${reasonWidth(reason)}%` }"></span></span>
+                                </li>
+                            </ol>
+                        </section>
+                        <section class="report-dashboard__section" aria-labelledby="dashboard-comparison-title">
+                            <h3 id="dashboard-comparison-title">{{ auth.user?.role === 'ADMINISTRATOR' ? 'Perbandingan antar-Pustu' : 'Perbandingan antar-sekolah' }}</h3>
+                            <ul v-if="overdueComparisons.length" class="report-overdue-list">
+                                <li v-for="row in overdueComparisons" :key="row.nama">
+                                    <strong>{{ row.nama }}</strong><span>{{ row.validasi_tertunda }} validasi tertunda</span>
+                                </li>
+                            </ul>
+                            <p v-else class="report-dashboard__muted">Tidak ada validasi yang melewati batas waktu.</p>
+                            <DataTable
+                                :columns="[
+                                    { key: 'nama', label: auth.user?.role === 'ADMINISTRATOR' ? 'Pustu' : 'Sekolah' },
+                                    { key: 'jumlah_siswi', label: 'Siswi' },
+                                    { key: 'cakupan_penerimaan', label: 'Cakupan (%)' },
+                                    { key: 'tingkat_kepatuhan', label: 'Kepatuhan (%)' },
+                                    { key: 'validasi_tertunda', label: 'Tertunda' },
+                                ]"
+                                :rows="reportComparisons"
+                                label="Perbandingan kepatuhan"
+                            >
+                                <template #cell-cakupan_penerimaan="{ value }">{{ value }}%</template>
+                                <template #cell-tingkat_kepatuhan="{ value }">{{ value }}%</template>
+                            </DataTable>
+                        </section>
+                    </div>
+                </template>
             </section>
 
             <section class="dashboard-workspace" aria-labelledby="dashboard-workspace-title">

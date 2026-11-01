@@ -260,6 +260,28 @@ class TahapSatuTest extends TestCase
         ]);
     }
 
+    public function test_role_changes_alert_active_administrators_only_when_role_changes(): void
+    {
+        $administrator = $this->createAdministrator();
+        $user = User::factory()->create(['role' => 'GURU']);
+
+        $user->update(['status' => 'NONAKTIF']);
+
+        $this->assertDatabaseMissing('notifikasi', [
+            'user_id' => $administrator->id,
+            'tipe' => 'PERAN_AKUN_BERUBAH',
+        ]);
+
+        $user->update(['role' => 'ADMIN_PUSTU']);
+
+        $this->assertDatabaseHas('notifikasi', [
+            'user_id' => $administrator->id,
+            'tipe' => 'PERAN_AKUN_BERUBAH',
+            'judul' => 'Perubahan peran akun',
+            'isi' => 'Peran pada sebuah akun pengguna telah berubah.',
+        ]);
+    }
+
     public function test_new_pustu_admin_must_change_temporary_password_before_operations(): void
     {
         $identity = '198701012009011001';

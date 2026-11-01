@@ -6,9 +6,11 @@ import LoginHistoryPage from './pages/LoginHistoryPage.vue';
 import ManagementPage from './pages/ManagementPage.vue';
 import MasterDataPage from './pages/MasterDataPage.vue';
 import LoginPage from './pages/LoginPage.vue';
+import LaporanRekapPage from './pages/LaporanRekapPage.vue';
 import NotFoundPage from './pages/NotFoundPage.vue';
 import PelaporanPage from './pages/PelaporanPage.vue';
 import RegistrationPage from './pages/RegistrationPage.vue';
+import RantaiPasokPage from './pages/RantaiPasokPage.vue';
 import TahapDuaPage from './pages/TahapDuaPage.vue';
 import { useAuthStore } from './stores/auth';
 
@@ -25,6 +27,7 @@ export function createAppRouter(pinia) {
             { path: '/dashboard/administrator', name: 'dashboard-administrator', component: DashboardPage, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
             { path: '/dashboard/pustu', name: 'dashboard-pustu', component: DashboardPage, meta: { requiresAuth: true, roles: ['ADMIN_PUSTU'] } },
             { path: '/dashboard/pengguna', name: 'dashboard-pengguna', component: DashboardPage, meta: { requiresAuth: true, roles: ['GURU', 'SISWI'] } },
+            { path: '/laporan-rekap', name: 'laporan-rekap', component: LaporanRekapPage, meta: { requiresAuth: true, roles: ['ADMINISTRATOR', 'ADMIN_PUSTU'] } },
             { path: '/program', name: 'program', component: TahapDuaPage, props: { view: 'auto' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR', 'ADMIN_PUSTU', 'GURU', 'SISWI'] } },
             { path: '/program/data-guru', name: 'data-guru', component: TahapDuaPage, props: { view: 'data-guru' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR', 'ADMIN_PUSTU'] } },
             { path: '/program/verifikasi-guru', name: 'verifikasi-guru', component: TahapDuaPage, props: { view: 'verifikasi-guru' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR', 'ADMIN_PUSTU'] } },
@@ -44,6 +47,19 @@ export function createAppRouter(pinia) {
             { path: '/sekolah/tahun-ajaran', name: 'tahun-ajaran', component: MasterDataPage, props: { section: 'tahun-ajaran' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
             { path: '/log-aktivitas', name: 'log-aktivitas', component: ActivityLogPage, meta: { requiresAuth: true, roles: ['ADMINISTRATOR', 'ADMIN_PUSTU'] } },
             { path: '/riwayat-login', name: 'riwayat-login', component: LoginHistoryPage, meta: { requiresAuth: true } },
+            { path: '/obat-ttd/stok-masuk', name: 'obat-stok-masuk', component: RantaiPasokPage, props: { view: 'stok-masuk' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
+            { path: '/obat-ttd/stok-masuk/tambah', name: 'obat-stok-masuk-form', component: RantaiPasokPage, props: { view: 'stok-masuk-form' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
+            { path: '/obat-ttd/pengiriman-pustu', name: 'obat-pengiriman-pustu', component: RantaiPasokPage, props: { view: 'pengiriman-pustu' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
+            { path: '/obat-ttd/pengiriman-pustu/buat', name: 'obat-pengiriman-pustu-form', component: RantaiPasokPage, props: { view: 'pengiriman-pustu-form' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
+            { path: '/obat-ttd/rekap-stok', name: 'obat-rekap-stok', component: RantaiPasokPage, props: { view: 'rekap-stok' }, meta: { requiresAuth: true, roles: ['ADMINISTRATOR'] } },
+            { path: '/obat-ttd/penerimaan-puskesmas', name: 'obat-penerimaan-puskesmas', component: RantaiPasokPage, props: { view: 'penerimaan-puskesmas' }, meta: { requiresAuth: true, roles: ['ADMIN_PUSTU'] } },
+            { path: '/obat-ttd/stok-pustu', name: 'obat-stok-pustu', component: RantaiPasokPage, props: { view: 'stok-pustu' }, meta: { requiresAuth: true, roles: ['ADMIN_PUSTU'] } },
+            { path: '/obat-ttd/serah-terima-sekolah', name: 'obat-serah-terima', component: RantaiPasokPage, props: { view: 'serah-terima-sekolah' }, meta: { requiresAuth: true, roles: ['ADMIN_PUSTU'] } },
+            { path: '/obat-ttd/serah-terima-sekolah/buat', name: 'obat-serah-terima-form', component: RantaiPasokPage, props: { view: 'serah-terima-form' }, meta: { requiresAuth: true, roles: ['ADMIN_PUSTU'] } },
+            { path: '/obat-ttd/serah-terima-sekolah/:distributionId', name: 'obat-serah-terima-detail', component: RantaiPasokPage, props: (route) => ({ view: 'serah-terima-detail', distributionId: route.params.distributionId }), meta: { requiresAuth: true, roles: ['ADMIN_PUSTU'] } },
+            { path: '/obat-ttd/penerimaan-sekolah', name: 'obat-penerimaan-sekolah', component: RantaiPasokPage, props: { view: 'penerimaan-pustu' }, meta: { requiresAuth: true, roles: ['GURU'] } },
+            { path: '/obat-ttd/penerimaan-sekolah/:distributionId', name: 'obat-penerimaan-detail', component: RantaiPasokPage, props: (route) => ({ view: 'penerimaan-detail', distributionId: route.params.distributionId }), meta: { requiresAuth: true, roles: ['GURU'] } },
+            { path: '/obat-ttd/pembagian-siswi', name: 'obat-paket-siswi', component: RantaiPasokPage, props: { view: 'paket-siswi' }, meta: { requiresAuth: true, roles: ['GURU'] } },
             { path: '/:pathMatch(.*)*', component: NotFoundPage },
         ],
     });

@@ -43,13 +43,27 @@ const menuItems = computed(() => {
                 ],
             },
             {
+                label: 'Obat TTD',
+                children: [
+                    { label: 'Stok Masuk', to: '/obat-ttd/stok-masuk' },
+                    { label: 'Pengiriman ke Pustu', to: '/obat-ttd/pengiriman-pustu' },
+                    { label: 'Rekap Stok', to: '/obat-ttd/rekap-stok' },
+                ],
+            },
+            {
                 label: 'Wilayah',
                 children: [
                     { label: 'Kecamatan', to: '/wilayah/kecamatan' },
                     { label: 'Kelurahan', to: '/wilayah/kelurahan' },
                 ],
             },
-            { label: 'Laporan & Pengaturan', to: '/pelaporan' },
+            {
+                label: 'Laporan',
+                children: [
+                    { label: 'Laporan & Ekspor', to: '/laporan-rekap' },
+                    { label: 'Pengaturan Pelaporan', to: '/pelaporan' },
+                ],
+            },
             { label: 'Catatan Aktivitas', to: '/log-aktivitas' },
         ];
     } else if (auth.user?.role === 'ADMIN_PUSTU') {
@@ -76,6 +90,15 @@ const menuItems = computed(() => {
                     { label: 'Mutasi', to: '/program/mutasi' },
                 ],
             },
+            {
+                label: 'Obat TTD',
+                children: [
+                    { label: 'Penerimaan dari Puskesmas', to: '/obat-ttd/penerimaan-puskesmas' },
+                    { label: 'Serah Terima ke Sekolah', to: '/obat-ttd/serah-terima-sekolah' },
+                    { label: 'Stok Pustu', to: '/obat-ttd/stok-pustu' },
+                ],
+            },
+            { label: 'Laporan & Ekspor', to: '/laporan-rekap' },
             { label: 'Riwayat Tindakan', to: '/log-aktivitas' },
         ];
     } else if (auth.user?.role === 'GURU') {
@@ -91,6 +114,13 @@ const menuItems = computed(() => {
             },
             { label: 'Token Sekolah', to: '/program/token' },
             { label: 'Pemantauan', to: '/pelaporan' },
+            {
+                label: 'Obat TTD',
+                children: [
+                    { label: 'Penerimaan dari Pustu', to: '/obat-ttd/penerimaan-sekolah' },
+                    { label: 'Pembagian ke Siswi', to: '/obat-ttd/pembagian-siswi' },
+                ],
+            },
         ];
     } else if (auth.user?.role === 'SISWI') {
         return [
@@ -146,7 +176,7 @@ async function logout() {
                     <div v-if="item.children" class="sidebar__group">
                         <button
                             class="sidebar__group-toggle"
-                            :class="{ 'sidebar__link--active': item.children.some((child) => router.currentRoute.value.path === child.to) }"
+                            :class="{ 'sidebar__link--active': item.children.some((child) => router.currentRoute.value.path === child.to || router.currentRoute.value.path.startsWith(`${child.to}/`)) }"
                             type="button"
                             :aria-expanded="isGroupOpen(item.label)"
                             @click="toggleGroup(item.label)"
@@ -160,7 +190,7 @@ async function logout() {
                                 v-for="child in item.children"
                                 :key="child.to"
                                 class="sidebar__link sidebar__link--nested"
-                                active-class="sidebar__link--active"
+                                :class="{ 'sidebar__link--active': router.currentRoute.value.path === child.to || router.currentRoute.value.path.startsWith(`${child.to}/`) }"
                                 :to="child.to"
                                 @click="drawerOpen = false"
                             >

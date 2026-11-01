@@ -18,6 +18,7 @@ use App\Services\Files\PrivatePhotoStorage;
 use Database\Seeders\AlasanTidakMinumSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,12 @@ use Tests\TestCase;
 class TahapTigaTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->travelTo(Carbon::parse('2026-10-19 12:00:00'));
+    }
 
     public function test_weekly_reporting_route_returns_the_spa_shell(): void
     {

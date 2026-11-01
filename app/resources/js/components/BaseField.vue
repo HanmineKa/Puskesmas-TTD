@@ -8,6 +8,9 @@ const props = defineProps({
     autocomplete: { type: String, default: 'off' },
     minLength: { type: Number, default: undefined },
     maxLength: { type: Number, default: undefined },
+    min: { type: Number, default: undefined },
+    max: { type: Number, default: undefined },
+    step: { type: [Number, String], default: undefined },
     error: { type: String, default: '' },
     required: { type: Boolean, default: false },
 });
@@ -29,6 +32,9 @@ const emit = defineEmits(['update:modelValue']);
             :required="required"
             :minlength="minLength"
             :maxlength="maxLength"
+            :min="min"
+            :max="max"
+            :step="step"
             :aria-invalid="Boolean(error)"
             :aria-describedby="error ? `${id}-error` : undefined"
             class="base-field__input"
